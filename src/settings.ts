@@ -238,6 +238,13 @@ export class LinksSettings extends FormattingSettingsSimpleCard {
     public slices: FormattingSettingsSlice[] = [];
 }
 
+export class NodesColorSelector extends FormattingSettingsSimpleCard {
+    public name: string = "nodes";
+    public displayName: string = "Nodes";
+    public displayNameKey: string = "Visual_Nodes";
+    public slices: FormattingSettingsSlice[] = [];
+}
+
 export class NodesSettings extends FormattingSettingsSimpleCard {
     public name: string = "nodes";
     public displayName: string = "Nodes";
@@ -368,14 +375,15 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
     public labels: DataLabelsSettings = new DataLabelsSettings();
     public linkLabels: LinkLabelsSettings = new LinkLabelsSettings();
     public linksColorSelector: LinksSettings = new LinksSettings();
+    public nodesColorSelector: NodesColorSelector = new NodesColorSelector();
     public nodesSettings: NodesSettings = new NodesSettings();
     public scale: ScaleSettings = new ScaleSettings();
     public cyclesLinks: CyclesLinkSettings = new CyclesLinkSettings();
     public nodeComplexSettings: NodeComplexSettings = new NodeComplexSettings();
-    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.linksColorSelector, this.nodesSettings, this.scale, this.cyclesLinks, this.nodeComplexSettings];
+    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.linksColorSelector, this.nodesColorSelector, this.nodesSettings, this.scale, this.cyclesLinks, this.nodeComplexSettings];
 
     populateNodesColorSelector(nodes: SankeyDiagramNode[]) {
-        const slices = this.nodesSettings.slices;
+        const slices = this.nodesColorSelector.slices;
         if (nodes) {
             nodes.forEach(node => {
                 if(slices.some((nodeColorSelector: FormattingSettingsSlice) => nodeColorSelector.displayName === node.label.formattedName)){
