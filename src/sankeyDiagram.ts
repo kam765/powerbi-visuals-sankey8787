@@ -232,6 +232,7 @@ export class SankeyDiagram implements IVisual {
     private static NodeAndBackwardLinkDistance: number = 5;
     private static DistanceBetweenLinks: number = 3;
 
+    private container: Selection<any>;
     private root: Selection<any>;
     private clearCatcher: Selection<any>;
     private defs: Selection<any>;
@@ -255,6 +256,7 @@ export class SankeyDiagram implements IVisual {
     private tooltipServiceWrapper: ITooltipServiceWrapper;
 
     private fontFamily: string;
+    private mainShiftY: number = 0;
 
     public static SourceCategoryIndex: number = 0;
     public static DestinationCategoryIndex: number = 1;
@@ -288,7 +290,11 @@ export class SankeyDiagram implements IVisual {
         this.localizationManager = this.visualHost.createLocalizationManager();
         this.formattingSettingsService = new FormattingSettingsService(this.localizationManager);
 
-        this.root = d3Select(options.element)
+        this.container = d3Select(options.element)
+            .append("div")
+            .classed("sankeyDiagramContainer", true);
+
+        this.root = this.container
             .append("svg")
             .classed(SankeyDiagram.ClassName, true);
 
@@ -364,6 +370,15 @@ export class SankeyDiagram implements IVisual {
 
         this.computePositions(sankeyDiagramDataView, this.sankeyDiagramSettings);
 
+        const actualHeight: number = SankeyDiagram.getActualHeight(sankeyDiagramDataView.nodes);
+        const svgHeight: number = Math.max(
+            visualUpdateOptions.viewport.height,
+            actualHeight + this.margin.top + this.margin.bottom + this.mainShiftY
+        );
+
+        this.root.attr("height", svgHeight);
+        this.viewport.height = Math.max(this.viewport.height, actualHeight + this.mainShiftY);
+
         this.dataView = sankeyDiagramDataView;
 
         this.render(sankeyDiagramDataView, this.sankeyDiagramSettings);
@@ -408,10 +423,21 @@ export class SankeyDiagram implements IVisual {
             : value;
     }
 
+    private static getActualHeight(nodes: SankeyDiagramNode[]): number {
+        const maxBottom = d3Max(nodes.map(n => n.y + n.height));
+        return maxBottom ? maxBottom : 0;
+    }
+
     private updateElements(height: number, width: number, mainShiftY: number, buttonSettings: ButtonSettings): void {
+        this.container
+            .style("height", height + "px")
+            .style("width", width + "px");
+
         this.root
             .attr("height", height)
             .attr("width", width);
+
+        this.mainShiftY = mainShiftY;
 
         this.main.attr("transform", translate(this.margin.left, this.margin.top + mainShiftY));
 
@@ -1260,26 +1286,7 @@ export class SankeyDiagram implements IVisual {
             }
         }
 
-        // check if the last node in the column overflows the viewport
-        const lastNode: SankeyDiagramNode = columnNodes[columnNodes.length - 1];
-        let upwardShift: number = this.viewport.height - (lastNode.y + lastNode.height);
-        upwardShift = upwardShift > 0 ? 0 : upwardShift;
-
-        // Propagate the upward shift from bottom to top, adjusting to prevent overlaps.
-        for (let i: number = columnNodes.length - 1; i > 0; i--) {
-            columnNodes[i].y += upwardShift;
-            const previousNode: SankeyDiagramNode = columnNodes[i - 1];
-            const targetY: number = previousNode.y + previousNode.height + SankeyDiagram.NodeOffsetFactor;
-
-            if (Math.abs(previousNode.x - columnNodes[i].x) > nodeWidth || columnNodes[i].y >= targetY) {
-                upwardShift = 0;
-                continue;
-            }
-            // The previous node needs to be shifted up to avoid overlap.
-            upwardShift = columnNodes[i].y - SankeyDiagram.NodeOffsetFactor - previousNode.height - previousNode.y;
-        }
-
-        columnNodes[0].y += upwardShift;
+        // nodes may overflow the viewport; remaining space will be accessible via scrolling
     }
 
     private computeBordersOfTheNode(sankeyDiagramDataView: SankeyDiagramDataView, settings: SankeyDiagramSettings): void {
