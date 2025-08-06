@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+* Increased maximum scale range to allow larger values
+* Added option to enforce minimum node height for readable labels
+
 ## 3.4.6.0
 
 ### New features

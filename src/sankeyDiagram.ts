@@ -194,7 +194,7 @@ export class SankeyDiagram implements IVisual {
     private static MaxDomainOfScale = 9;
     private static DefaultMinRangeOfScale = 3;
     private static MinRangeOfScale = 0;
-    private static DefaultMaxRangeOfScale = 100;
+    private static DefaultMaxRangeOfScale = 1000;
 
     public static DuplicatedNamePostfix: string = "_SK_SELFLINK";
 
@@ -1161,7 +1161,22 @@ export class SankeyDiagram implements IVisual {
             maxWeightInData = maxWeightLink.weight;
         }
 
-        const minRangeOfScale: number = settings.scale.provideMinHeight.value ? SankeyDiagram.DefaultMinRangeOfScale : SankeyDiagram.MinRangeOfScale;
+        let minRangeOfScale: number;
+        if (settings.scale.provideMinHeight.value) {
+            const textPropsExtended = SankeyDiagram.getTextProperties(settings.labels);
+            const labelProps: TextProperties = {
+                text: "M",
+                fontFamily: textPropsExtended.fontFamily,
+                fontSize: textPropsExtended.fontSize,
+            };
+            const labelHeight: number = textMeasurementService.estimateSvgTextHeight(labelProps);
+            minRangeOfScale = Math.max(
+                labelHeight + SankeyDiagram.NodeMargin,
+                SankeyDiagram.DefaultMinRangeOfScale
+            );
+        } else {
+            minRangeOfScale = SankeyDiagram.MinRangeOfScale;
+        }
 
         while (minHeight <= SankeyDiagram.MinHeightOfNode && scaleStepCount < SankeyDiagram.ScaleStepLimit) {
             let weightScale: ScaleContinuousNumeric<number, number>;
