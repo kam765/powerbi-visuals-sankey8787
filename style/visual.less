@@ -28,7 +28,12 @@
  * Imports external styles.
  * We compile it as a less file in order to wrap the external CSS rules.
  */
- @import (less) "powerbi-visuals-utils-interactivityutils/lib/index.css";
+@import (less) "powerbi-visuals-utils-interactivityutils/lib/index.css";
+
+.sankeyDiagramContainer {
+    height: 100%;
+    overflow-y: auto;
+}
 
 .sankeyDiagram {
     @sankeyDiagramFontSize: 11px;
