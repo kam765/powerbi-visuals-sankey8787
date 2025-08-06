@@ -348,6 +348,7 @@ export class LinksSettings extends FormattingSettingsSimpleCard implements IHand
         this.defaultContainerItem.fill.disabled = this.matchNodeColors.value;
     }
 
+
     public matchNodeColors = new formattingSettings.ToggleSwitch({
         name: "matchNodeColors",
         displayName: "Match Node Colors",
@@ -363,6 +364,7 @@ export class LinksSettings extends FormattingSettingsSimpleCard implements IHand
         value: matchSourceOrDestinationOptions[0],
         visible: false
     });
+
 
     public defaultContainerItem: LinkColorContainerItem = new LinkColorContainerItem();
     public container?: formattingSettings.Container = new formattingSettings.Container({
@@ -561,6 +563,7 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
 
     public labels: DataLabelsSettings = new DataLabelsSettings();
     public linkLabels: LinkLabelsSettings = new LinkLabelsSettings();
+
     public links: LinksSettings = new LinksSettings();
     public nodes: NodesSettings = new NodesSettings();
     public scale: ScaleSettings = new ScaleSettings();
@@ -571,6 +574,7 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
     populateNodesColorSelector(nodes: SankeyDiagramNode[]) {
         const containerItems = this.nodes.container.containerItems;
         nodes?.forEach(node => containerItems.push(new NodesContainerItem(node)));
+
     }
 
     populateLinksColorSelector(links: SankeyDiagramLink[]) {
