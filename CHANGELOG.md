@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### New features
+* Added vertical scrolling to navigate large diagrams
+* Enabled conditional formatting for node colors
 * Increased maximum scale range to allow larger values
 * Added option to enforce minimum node height for readable labels
 
