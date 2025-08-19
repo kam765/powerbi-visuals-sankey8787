@@ -36,6 +36,7 @@ import { max as d3Max, min as d3Min } from "d3-array";
 import { scaleLog as d3ScaleLog, scaleLinear as d3ScaleLinear, ScaleContinuousNumeric } from "d3-scale";
 import { rgb as d3Rgb } from "d3-color";
 import { interpolateNumber as d3InterpolateNumber } from "d3-interpolate";
+import { zoom as d3Zoom, zoomIdentity, zoomTransform } from "d3-zoom";
 
 type Selection<T> = d3Selection<any, T, any, any>;
 
@@ -236,10 +237,13 @@ export class SankeyDiagram implements IVisual {
     private root: Selection<any>;
     private clearCatcher: Selection<any>;
     private defs: Selection<any>;
+    private zoomLayer: Selection<any>;
     private main: Selection<any>;
     private nodes: Selection<SankeyDiagramNode>;
     private links: Selection<SankeyDiagramLink>;
     private resetButton: Selection<any>;
+    private zoom: any;
+    private currentTransform = zoomIdentity;
 
     private colorPalette: IColorPalette;
     private colorHelper: ColorHelper;
@@ -283,6 +287,18 @@ export class SankeyDiagram implements IVisual {
 
     constructor(options: VisualConstructorOptions) {
         this.init(options);
+
+        this.currentTransform = zoomTransform(this.main.node() as any);
+        this.zoom = d3Zoom<SVGSVGElement, unknown>()
+            .scaleExtent([0.5, 5])
+            .on("zoom", e => {
+                this.currentTransform = e.transform;
+                this.main.attr(
+                    "transform",
+                    `${translate(this.margin.left, this.margin.top + this.mainShiftY)} ${e.transform.toString()}`
+                );
+            });
+        this.root.call(this.zoom);
     }
 
     private init(options: VisualConstructorOptions): void {
@@ -314,7 +330,8 @@ export class SankeyDiagram implements IVisual {
 
         this.fontFamily = this.root.style("font-family");
 
-        this.main = this.root.append("g");
+        this.zoomLayer = this.root.append("g");
+        this.main = this.zoomLayer.append("g");
 
         this.links = this.main
             .append("g")
@@ -439,7 +456,12 @@ export class SankeyDiagram implements IVisual {
 
         this.mainShiftY = mainShiftY;
 
-        this.main.attr("transform", translate(this.margin.left, this.margin.top + mainShiftY));
+        this.main.attr(
+            "transform",
+            `${translate(this.margin.left, this.margin.top + mainShiftY)} ${this.currentTransform.toString()}`
+        );
+
+        this.root.call(this.zoom.transform, this.currentTransform);
 
         const buttonPosition: ButtonPosition = buttonSettings.position.value.value as ButtonPosition;
         const shiftX: number = this.getHorizontalPositionShift(buttonPosition, this.viewport, this.margin);
@@ -1269,6 +1291,10 @@ export class SankeyDiagram implements IVisual {
             columns.get(node.columnIndex)!.push(node);
         }
 
+        if (settings.layout.compactLayout.value) {
+            this.applyCompactLayout(columns);
+        }
+
         // adjust vertical position of nodes in each column
         for (const columnNodes of columns.values()) {
             this.adjustColumnVerticalPosition(columnNodes, nodeWidth);
@@ -1302,6 +1328,54 @@ export class SankeyDiagram implements IVisual {
         }
 
         // nodes may overflow the viewport; remaining space will be accessible via scrolling
+    }
+
+    private applyCompactLayout(columns: Map<number, SankeyDiagramNode[]>): void {
+        const columnIndices = Array.from(columns.keys()).sort((a, b) => a - b);
+
+        // forward pass - use sources to sort destinations
+        for (let i = 1; i < columnIndices.length; i++) {
+            const nodes = columns.get(columnIndices[i])!;
+            nodes.forEach(node => {
+                let sum = 0;
+                let weight = 0;
+                node.links
+                    .filter(l => l.direction === SankeyLinkDirrections.Forward && l.destination === node)
+                    .forEach(l => {
+                        sum += (l.source.y + l.source.height / 2) * l.weight;
+                        weight += l.weight;
+                    });
+                (node as any).barycenter = weight ? sum / weight : node.y + node.height / 2;
+            });
+            nodes.sort((a, b) => (a as any).barycenter - (b as any).barycenter);
+            nodes.forEach(n => n.y = (n as any).barycenter - n.height / 2);
+            const minY = d3Min(nodes.map(n => n.y));
+            if (minY !== undefined && minY < 0) {
+                nodes.forEach(n => n.y -= minY);
+            }
+        }
+
+        // backward pass - use destinations to sort sources
+        for (let i = columnIndices.length - 2; i >= 0; i--) {
+            const nodes = columns.get(columnIndices[i])!;
+            nodes.forEach(node => {
+                let sum = 0;
+                let weight = 0;
+                node.links
+                    .filter(l => l.direction === SankeyLinkDirrections.Forward && l.source === node)
+                    .forEach(l => {
+                        sum += (l.destination.y + l.destination.height / 2) * l.weight;
+                        weight += l.weight;
+                    });
+                (node as any).barycenter = weight ? sum / weight : node.y + node.height / 2;
+            });
+            nodes.sort((a, b) => (a as any).barycenter - (b as any).barycenter);
+            nodes.forEach(n => n.y = (n as any).barycenter - n.height / 2);
+            const minY = d3Min(nodes.map(n => n.y));
+            if (minY !== undefined && minY < 0) {
+                nodes.forEach(n => n.y -= minY);
+            }
+        }
     }
 
     private computeBordersOfTheNode(sankeyDiagramDataView: SankeyDiagramDataView, settings: SankeyDiagramSettings): void {
@@ -1422,7 +1496,10 @@ export class SankeyDiagram implements IVisual {
     }
 
     private getScaleByAxisX(numberOfColumns: number = SankeyDiagram.DefaultNumberOfColumns): number {
-        return SankeyDiagram.getPositiveNumber((this.viewport.width - this.sankeyDiagramSettings.nodesSettings.nodeWidth.value) / numberOfColumns);
+        const spacing: number = this.sankeyDiagramSettings.layout.horizontalSpacing.value;
+        return SankeyDiagram.getPositiveNumber(
+            (this.viewport.width - this.sankeyDiagramSettings.nodesSettings.nodeWidth.value) / numberOfColumns * spacing
+        );
     }
 
     public static sortNodesByColumnIndex(nodes: SankeyDiagramNode[]): SankeyDiagramNode[] {
@@ -1992,7 +2069,22 @@ export class SankeyDiagram implements IVisual {
             .attr("aria-selected", "false")
             .attr('aria-label', (link: SankeyDiagramLink) => `${link.source.label.name} to ${link.destination.label.name} weighted at ${link.weight}`)
             .style("stroke", (link: SankeyDiagramLink) => link.strokeColor)
-            .style("fill", (link: SankeyDiagramLink) => link.fillColor);
+            .style("fill", (link: SankeyDiagramLink) => link.direction === SankeyLinkDirrections.Forward ||
+                (link.direction === SankeyLinkDirrections.Backward && link.source.x + link.source.width > link.destination.x)
+                ? "none"
+                : link.fillColor)
+            .style("stroke-width", (link: SankeyDiagramLink) => link.direction === SankeyLinkDirrections.Forward ||
+                (link.direction === SankeyLinkDirrections.Backward && link.source.x + link.source.width > link.destination.x)
+                ? Math.max(1, link.height - SankeyDiagram.DistanceBetweenLinks)
+                : null)
+            .style("stroke-linecap", (link: SankeyDiagramLink) => link.direction === SankeyLinkDirrections.Forward ||
+                (link.direction === SankeyLinkDirrections.Backward && link.source.x + link.source.width > link.destination.x)
+                ? "round"
+                : null)
+            .style("pointer-events", (link: SankeyDiagramLink) => link.direction === SankeyLinkDirrections.Forward ||
+                (link.direction === SankeyLinkDirrections.Backward && link.source.x + link.source.width > link.destination.x)
+                ? "stroke"
+                : null);
 
         return linksElements;
     }
@@ -2299,16 +2391,7 @@ export class SankeyDiagram implements IVisual {
     }
 
     private getSvgPathForForwardLink(link: SankeyDiagramLink): string {
-        let pathParams: string = "";
-        const distanceBetweenLinks: number = 3;
-
-        let x0: number,
-            x1: number,
-            xi: (t: number) => number,
-            x2: number,
-            x3: number,
-            y0: number,
-            y1: number;
+        let x0: number, x1: number;
 
         if (link.destination.x < link.source.x) {
             x0 = link.source.x;
@@ -2318,39 +2401,14 @@ export class SankeyDiagram implements IVisual {
             x1 = link.destination.x;
         }
 
-        // drawing area as combination of 4 lines in one path element of svg to fill this area with required color
-        // upper border of link
-        xi = d3InterpolateNumber(x0, x1);
-        x2 = xi(this.curvatureOfLinks);
-        x3 = xi(1 - this.curvatureOfLinks);
-        y0 = link.source.y + link.shiftByAxisYSource + link.height / SankeyDiagram.MiddleFactor - (link.height - distanceBetweenLinks) / 2;
-        y1 = link.destination.y + link.shiftByAxisYDestination + link.height / SankeyDiagram.MiddleFactor - (link.height - distanceBetweenLinks) / 2;
+        const xi: (t: number) => number = d3InterpolateNumber(x0, x1);
+        const x2: number = xi(this.curvatureOfLinks);
+        const x3: number = xi(1 - this.curvatureOfLinks);
 
-        pathParams += ` M ${x0} ${y0} C ${x2} ${y0}, ${x3} ${y1}, ${x1} ${y1}`;
+        const y0: number = link.source.y + link.shiftByAxisYSource + link.height / SankeyDiagram.MiddleFactor;
+        const y1: number = link.destination.y + link.shiftByAxisYDestination + link.height / SankeyDiagram.MiddleFactor;
 
-        // right border of link
-        y0 = link.destination.y + link.shiftByAxisYDestination + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor + (link.height - distanceBetweenLinks) / 2;
-        y1 = link.destination.y + link.shiftByAxisYDestination + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor - (link.height - distanceBetweenLinks) / 2;
-
-        pathParams += ` L ${x1} ${y0}`;
-
-        // bottom border of link
-        xi = d3InterpolateNumber(x0, x1);
-        x2 = xi(this.curvatureOfLinks);
-        x3 = xi(1 - this.curvatureOfLinks);
-        y0 = link.source.y + link.shiftByAxisYSource + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor + (link.height - distanceBetweenLinks) / 2;
-        y1 = link.destination.y + link.shiftByAxisYDestination + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor + (link.height - distanceBetweenLinks) / 2;
-
-        pathParams += ` L ${x1} ${y1} C ${x2} ${y1}, ${x3} ${y0}, ${x0} ${y0}`;
-
-        // left border of link
-        y0 = link.source.y + link.shiftByAxisYSource + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor + (link.height - distanceBetweenLinks) / 2;
-        y1 = link.source.y + link.shiftByAxisYSource + (link.height - distanceBetweenLinks) / SankeyDiagram.MiddleFactor - (link.height - distanceBetweenLinks) / 2;
-
-        // close path to get closed area
-        pathParams += ` Z`;
-
-        return pathParams;
+        return `M ${x0} ${y0} C ${x2} ${y0}, ${x3} ${y1}, ${x1} ${y1}`;
     }
 
     private renderTooltip(selection: Selection<SankeyDiagramNode | SankeyDiagramLink>): void {

@@ -51,5 +51,8 @@
 	"Visual_KeepNodeOrderDescription": "If enabled, the node order will be saved and restored when the visual is reloaded",
 	"Visual_KeepNodeOrder": "Keep order of nodes",
 	"Visual_KeepNodePositions": "Keep positions of nodes",
-	"Visual_KeepNodePositionsDescription": "If enabled, the node positions will be saved and restored when the visual is reloaded"
+	"Visual_KeepNodePositionsDescription": "If enabled, the node positions will be saved and restored when the visual is reloaded",
+  "Visual_Layout": "Layout",
+  "Visual_HorizontalSpacing": "Horizontal spacing",
+  "Visual_CompactLayout": "Compact layout"
 }

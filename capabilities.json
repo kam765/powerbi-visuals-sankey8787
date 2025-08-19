@@ -222,6 +222,20 @@
                 }
             }
         },
+        "layout": {
+            "properties": {
+                "horizontalSpacing": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "compactLayout": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
         "scaleSettings": {
             "properties": {
                 "lnScale": {
