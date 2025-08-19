@@ -269,6 +269,35 @@ export class NodesSettings extends FormattingSettingsSimpleCard {
     public slices: FormattingSettingsSlice[] = [this.nodeWidth];
 }
 
+export class LayoutSettings extends FormattingSettingsSimpleCard {
+    public name: string = "layout";
+    public displayNameKey: string = "Visual_Layout";
+
+    public horizontalSpacing = new formattingSettings.NumUpDown({
+        name: "horizontalSpacing",
+        displayNameKey: "Visual_HorizontalSpacing",
+        value: 1,
+        options: {
+            minValue: {
+                type: powerbiVisualsApi.visuals.ValidatorType.Min,
+                value: 0.5,
+            },
+            maxValue: {
+                type: powerbiVisualsApi.visuals.ValidatorType.Max,
+                value: 5,
+            }
+        }
+    });
+
+    public compactLayout = new formattingSettings.ToggleSwitch({
+        name: "compactLayout",
+        displayNameKey: "Visual_CompactLayout",
+        value: false
+    });
+
+    public slices: FormattingSettingsSlice[] = [this.horizontalSpacing, this.compactLayout];
+}
+
 export class ScaleSettings extends FormattingSettingsSimpleCard {
     public provideMinHeight = new formattingSettings.ToggleSwitch({
         name: "provideMinHeight",
@@ -377,10 +406,11 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
     public linksColorSelector: LinksSettings = new LinksSettings();
     public nodesColorSelector: NodesColorSelector = new NodesColorSelector();
     public nodesSettings: NodesSettings = new NodesSettings();
+    public layout: LayoutSettings = new LayoutSettings();
     public scale: ScaleSettings = new ScaleSettings();
     public cyclesLinks: CyclesLinkSettings = new CyclesLinkSettings();
     public nodeComplexSettings: NodeComplexSettings = new NodeComplexSettings();
-    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.linksColorSelector, this.nodesColorSelector, this.nodesSettings, this.scale, this.cyclesLinks, this.nodeComplexSettings];
+    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.linksColorSelector, this.nodesColorSelector, this.nodesSettings, this.layout, this.scale, this.cyclesLinks, this.nodeComplexSettings];
 
     populateNodesColorSelector(nodes: SankeyDiagramNode[]) {
         const slices = this.nodesColorSelector.slices;
