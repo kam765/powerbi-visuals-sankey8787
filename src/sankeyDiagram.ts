@@ -1878,17 +1878,25 @@ export class SankeyDiagram implements IVisual {
         function dragged(event: DragEvent, node: SankeyDiagramNode) {
             node.x = event.x;
             node.y = event.y;
-            if (node.x < 0) {
-                node.x = 0;
+
+            const t = self.currentTransform;
+            const invK = 1 / t.k;
+            const minX = -t.x * invK;
+            const minY = -t.y * invK;
+            const maxX = minX + self.viewport.width * invK - node.width;
+            const maxY = minY + self.viewport.height * invK - node.height;
+
+            if (node.x < minX) {
+                node.x = minX;
             }
-            if (node.y < 0) {
-                node.y = 0;
+            if (node.y < minY) {
+                node.y = minY;
             }
-            if (node.x + node.width > self.viewport.width) {
-                node.x = self.viewport.width - node.width;
+            if (node.x > maxX) {
+                node.x = maxX;
             }
-            if (node.y + node.height > self.viewport.height) {
-                node.y = self.viewport.height - node.height;
+            if (node.y > maxY) {
+                node.y = maxY;
             }
             node.settings = {
                 x: node.x.toFixed(2), y: node.y.toFixed(2), name: node.label.name
